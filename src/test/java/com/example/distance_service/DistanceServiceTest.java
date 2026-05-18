@@ -1,35 +1,39 @@
 package com.example.distance_service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class DistanceServiceTest {
 
     // Создаём экземпляры зависимостей напрямую (без Spring контекста)
     private final DistanceCache distanceCache = new DistanceCache();
     private final RequestCounter requestCounter = new RequestCounter();
+    private final DistanceResultRepository resultRepository = null;
 
-    // В тесте используем упрощённый конструктор DistanceService без репозитория
-    private final DistanceService distanceService =
-            new DistanceService(distanceCache, requestCounter,null);
+    // подставной GeoDistanceService только для теста
+    private final GeoDistanceService fakeGeoService = new GeoDistanceService() {
+        @Override
+        public double getDistanceInKm(String fromCity, String toCity) {
+            if (fromCity.equals("Madrid") && toCity.equals("Lisbon")) {
+                return 502.9883215654312;
+            }
+            throw new IllegalArgumentException("Unexpected route in test");
+        }
+    };
 
-    // Тест "happy path": корректные города -> успешный ответ
+private final DistanceService distanceService =
+        new DistanceService(distanceCache, requestCounter, resultRepository, fakeGeoService);
     @Test
-    public void testCalculateDistance_ValidCities() {
-        // Вызываем метод с корректными названиями
-        DistanceResponse response = distanceService.calculateDistance("Minsk", "Moscow");
+    public void testCalculateDistance_MadridLisbon() {
+    DistanceResponse response = distanceService.calculateDistance("Madrid", "Lisbon");
 
-        // Проверяем, что ответ не null
-        assertNotNull(response);
-
-        // Проверяем, что названия городов сохранились правильно
-        assertEquals("Minsk", response.getFrom());
-        assertEquals("Moscow", response.getTo());
-
-        // Проверяем, что расстояние такое, как в бизнес-логике (700.0)
-        assertEquals(700.0, response.getDistance());
-    }
+    assertNotNull(response);
+    assertEquals("Madrid", response.getFrom());
+    assertEquals("Lisbon", response.getTo());
+    assertEquals(502.9883215654312, response.getDistance());
+}
 
     // Тест валидации: некорректное название города -> IllegalArgumentException
     @Test
